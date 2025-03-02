@@ -1,6 +1,6 @@
 """
 Usage:
-    python run_tests_on_folders.py --folder1 path/to/folder1 --folder2 path/to/folder2 --output results.csv
+    python run.py --folder1 path/to/folder1 --folder2 path/to/folder2 --output results.csv
 
 Arguments:
     --folder1: Path to the first folder containing images.
