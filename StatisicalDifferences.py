@@ -34,7 +34,7 @@ def psnr(image1, image2):
     return 20 * np.log10(255.0 / np.sqrt(mse_value))
 
 def ssim_score(image1, image2):
-    return ssim(rgb2gray(image1), rgb2gray(image2), data_range=255)
+    return ssim(rgb2gray(image1), rgb2gray(image2), data_range=1)
 
 def lpips_score(image1, image2):
     transform = transforms.Compose([transforms.ToTensor()])
@@ -47,7 +47,7 @@ def kl_divergence(image1, image2):
     hist2, _ = np.histogram(image2.flatten(), bins=256, density=True)
     return entropy(hist1 + 1e-10, hist2 + 1e-10)
 
-def fid_score(image1, image2, model=None):
+def fid_score(image1, image2, model=None, eps=1e-6):
     if model is None:
         model = models.inception_v3(weights=models.Inception_V3_Weights.DEFAULT)
         model.fc = torch.nn.Identity()
@@ -63,54 +63,57 @@ def fid_score(image1, image2, model=None):
     img2_tensor = transform(image2).unsqueeze(0)
 
     with torch.no_grad():
-        feat1 = model(img1_tensor).cpu().numpy()
-        feat2 = model(img2_tensor).cpu().numpy()
+        feat1 = model(img1_tensor).cpu().numpy().reshape(1, -1)
+        feat2 = model(img2_tensor).cpu().numpy().reshape(1, -1)
     
-    feat1 = feat1.reshape(feat1.shape[0], -1)
-    feat2 = feat2.reshape(feat2.shape[0], -1)
+    mu1, mu2 = np.mean(feat1, axis=0), np.mean(feat2, axis=0)
     
-    mu1, sigma1 = np.mean(feat1, axis=0), np.cov(feat1, rowvar=False)
-    mu2, sigma2 = np.mean(feat2, axis=0), np.cov(feat2, rowvar=False)
+    def calculate_cov(features):
+        n_samples = features.shape[0]
+        diff = features - np.mean(features, axis=0)
+        cov = (diff.T @ diff) / max(n_samples - 1, 1)
+        cov += eps * np.eye(cov.shape[0])  
+        return cov
     
-    if sigma1.ndim == 0:
-        sigma1 = np.array([[sigma1]])
-    if sigma2.ndim == 0:
-        sigma2 = np.array([[sigma2]])
+    sigma1 = calculate_cov(feat1)
+    sigma2 = calculate_cov(feat2)
     
     ssdiff = np.sum((mu1 - mu2) ** 2)
-    covmean = sqrtm(sigma1 @ sigma2)
     
+    cov_product = sigma1 @ sigma2
+    covmean = sqrtm(cov_product)
     if np.iscomplexobj(covmean):
         covmean = covmean.real
     
-    return ssdiff + np.trace(sigma1 + sigma2 - 2 * covmean)
+    covmean = np.maximum(covmean, 0)
+    
+    fid = ssdiff + np.trace(sigma1 + sigma2 - 2 * covmean)
+    return fid
 
-def evaluate_statistical(image1_path, image2_path, output_csv):
+def evaluate_statistical(image1_path, image2_path):
     if not os.path.exists(image1_path) or not os.path.exists(image2_path):
         raise FileNotFoundError(f"One or both image files are missing: {image1_path}, {image2_path}")
 
     img1 = Image.open(image1_path).convert("RGB")
     img2 = Image.open(image2_path).convert("RGB")
+    img1 = img1.resize((512, 512))
+    img2 = img2.resize((512, 512))
     img1_np = np.array(img1)
     img2_np = np.array(img2)
 
-    results = [
-        ["MSE", image1_path, image2_path, mse(img1_np, img2_np)],
-        ["PSNR", image1_path, image2_path, psnr(img1_np, img2_np)],
-        ["SSIM", image1_path, image2_path, ssim_score(img1_np, img2_np)],
-        ["LPIPS", image1_path, image2_path, lpips_score(img1, img2)],
-        ["KLD", image1_path, image2_path, kl_divergence(img1_np, img2_np)],
-        ["FID", image1_path, image2_path, fid_score(img1, img2)],
-    ]
+    results = {
+        "Image 1": image1_path,
+        "Image 2": image2_path,
+        "MSE": mse(img1_np, img2_np),
+        "PSNR": psnr(img1_np, img2_np),
+        "SSIM": ssim_score(img1_np, img2_np),
+        "LPIPS": lpips_score(img1, img2),
+        "KLD": kl_divergence(img1_np, img2_np),
+        "FID": fid_score(img1, img2),
+    }
     
-    df = pd.DataFrame(results, columns=["Metric", "Image 1", "Image 2", "Score"])
-    df.to_csv(output_csv, index=False, mode='a', header=not os.path.exists(output_csv))
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate statistical differences between two images")
-    parser.add_argument("--image1", type=str, required=True, help="Path to the first image")
-    parser.add_argument("--image2", type=str, required=True, help="Path to the second image")
-    parser.add_argument("--output", type=str, required=True, help="Path to the output CSV file")
-    args = parser.parse_args()
-
-    evaluate_statistical(args.image1, args.image2, args.output)
+    df = pd.DataFrame([results])
+    numeric = ["MSE", "PSNR", "SSIM", "LPIPS", "KLD", "FID"]
+    df[numeric] = df[numeric].astype(np.float64)
+    
+    return df

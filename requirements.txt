@@ -1,0 +1,13 @@
+lpips
+brisque
+torch
+torchvision
+numpy
+Pillow
+opencv-python
+scipy
+scikit-image
+pandas
+piq
+nltk
+PyWavelets

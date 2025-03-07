@@ -45,12 +45,14 @@ def bleu_score(caption1, caption2):
     from nltk.translate.bleu_score import sentence_bleu
     return sentence_bleu([caption1.split()], caption2.split())
 
-def evaluate_semantic(image1_path, image2_path, output_csv):
+def evaluate_semantic(image1_path, image2_path):
     if not os.path.exists(image1_path) or not os.path.exists(image2_path):
         raise FileNotFoundError(f"One or both image files are missing: {image1_path}, {image2_path}")
 
     img1 = Image.open(image1_path).convert("RGB")
     img2 = Image.open(image2_path).convert("RGB")
+    img1 = img1.resize((512, 512))
+    img2 = img2.resize((512, 512))
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -67,24 +69,19 @@ def evaluate_semantic(image1_path, image2_path, output_csv):
 
     blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-
-    results = [
-        ["Cosine Similarity", image1_path, image2_path, cosine_sim(img1, img2, resnet, transform)],
-        ["CLIP Similarity", image1_path, image2_path, clip_similarity(img1, img2, clip_model, clip_processor)],
-    ]
     
     caption1 = generate_caption(img1, blip_processor, blip_model)
     caption2 = generate_caption(img2, blip_processor, blip_model)
-    results.append(["BLEU Score", image1_path, image2_path, bleu_score(caption1, caption2)])
-
-    df = pd.DataFrame(results, columns=["Metric", "Image 1", "Image 2", "Score"])
-    df.to_csv(output_csv, index=False, mode='a', header=not os.path.exists(output_csv))
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate semantic coherence between two images")
-    parser.add_argument("--image1", type=str, required=True, help="Path to the first image")
-    parser.add_argument("--image2", type=str, required=True, help="Path to the second image")
-    parser.add_argument("--output", type=str, required=True, help="Path to the output CSV file")
-    args = parser.parse_args()
-
-    evaluate_semantic(args.image1, args.image2, args.output)
+    
+    results = {
+        "Image 1": image1_path,
+        "Image 2": image2_path,
+        "Cosine Similarity": cosine_sim(img1, img2, resnet, transform),
+        "CLIP Similarity": clip_similarity(img1, img2, clip_model, clip_processor),
+        "BLEU Score": bleu_score(caption1, caption2)
+    }
+    df = pd.DataFrame([results])
+    numeric = ["Cosine Similarity", "CLIP Similarity", "BLEU Score"]
+    df[numeric] = df[numeric].astype(np.float64)
+    return df
+    
