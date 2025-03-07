@@ -30,20 +30,21 @@ The following metrics are included:
 
 Cuda acceleration is recommended for faster processing on large datasets.
 
-Arguments:
-    Required:
-        -f1, --folder1: Path to the first folder containing images.
-        -f2, --folder2: Path to the second folder containing images.
-        -n, --name: Path to output folder + experiment name.
-    Optional:
-        -st, --statistical: Evaluate statistical differences between images.
-        -se, --semantic: Evaluate semantic coherence between images.
-        -r, --realism: Evaluate realism of images.
+### Arguments:
+#### Required:
+- `-f1`, `--folder1`: Path to the first folder containing images.
+- `-f2`, `--folder2`: Path to the second folder containing images.
+- `-n`, `--name`: Path to output folder + experiment name.
 
-Returns:
-    2 CSV files for each evaluation type:
-        - {name}_test_type.csv: Detailed results for each image pair.
-        - {name}_test_type_summary.csv: Summary statistics for the evaluation type across all images.
+#### Optional:
+- `-st`, `--statistical`: Evaluate statistical differences between images.
+- `-se`, `--semantic`: Evaluate semantic coherence between images.
+- `-r`, `--realism`: Evaluate realism of images.
+
+### Returns:
+2 CSV files for each evaluation type:
+- `{name}_test_type.csv`: Detailed results for each image pair.
+- `{name}_test_type_summary.csv`: Summary statistics for the evaluation type across all images.
 
 **Important Note:** The Realism Evaluation uses some metrics that are no-reference. These metrics all operate on the second image in the pair, i.e. those in the folder specified by -f2. Therefore when making a comparison between between a real image and a deepfake, the real image should be in the folder specified by -f1 and the deepfake in the folder specified by -f2. Likewise, when comparing a deepfake to a protected deepfake, the deepfake should be in the folder specified by -f1 and the protected deepfake in the folder specified by -f2.
 
