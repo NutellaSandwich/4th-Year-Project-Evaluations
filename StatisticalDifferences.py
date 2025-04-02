@@ -34,7 +34,7 @@ def psnr(image1, image2):
     return 20 * np.log10(255.0 / np.sqrt(mse_value))
 
 def ssim_score(image1, image2):
-    return ssim(rgb2gray(image1), rgb2gray(image2), data_range=1)
+    return ssim(image1, image2, data_range=255.0, multichannel=True)
 
 def lpips_score(image1, image2):
     transform = transforms.Compose([transforms.ToTensor()])

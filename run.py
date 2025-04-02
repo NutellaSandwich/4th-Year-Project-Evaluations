@@ -23,7 +23,7 @@ import argparse
 import pandas as pd
 import numpy as np
 
-from  StatisicalDifferences import evaluate_statistical
+from  StatisticalDifferences import evaluate_statistical
 from RealismEvaluation import evaluate_images
 from SemanticCoherence import evaluate_semantic
 
@@ -39,7 +39,7 @@ def get_image_pairs(folder1, folder2):
 def main(folder1, folder2, output_csv):
     image_pairs = get_image_pairs(folder1, folder2)
     stat_scores = pd.DataFrame(columns=["Image 1", "Image 2", "MSE", "PSNR", "SSIM", "LPIPS", "KLD", "FID"])
-    sem_scores = pd.DataFrame(columns=["Image 1", "Image 2", "Cosine Similarity", "CLIP Similarity", "BLEU Score"])
+    sem_scores = pd.DataFrame(columns=["Image 1", "Image 2", "Cosine Similarity", "CLIP Similarity", "CLIP Score", "BLEU Score"])
     real_scores = pd.DataFrame(columns=["Image 1", "Image 2", "BRISQUE", "NIQE", "MS-SSIM", "Deepfake Detector Confidence"])
     
     for image1, image2 in image_pairs:
@@ -48,8 +48,8 @@ def main(folder1, folder2, output_csv):
             img_stats = evaluate_statistical(image1, image2)
             stat_scores = pd.concat([stat_scores, img_stats], ignore_index=True)
         if args.semantic:
-            sem_scores = evaluate_semantic(image1, image2)
-            sem_scores = pd.concat([sem_scores, img_stats], ignore_index=True)
+            sem_score = evaluate_semantic(image1, image2)
+            sem_scores = pd.concat([sem_scores, sem_score], ignore_index=True)
         if args.realism:
             real_score = evaluate_images(image1, image2)
             real_scores = pd.concat([real_scores, real_score], ignore_index=True)
