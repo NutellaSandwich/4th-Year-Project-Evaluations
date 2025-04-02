@@ -16,6 +16,7 @@ The following metrics are included:
 - Cosine Similarity (Feature Embeddings): Measures the similarity between deep feature vectors extracted from a pre-trained model. Lower values indicate stronger perturbations.
 - Identity Distance (ID Score): Uses a face recognition model to compute identity preservation between two images. Higher values suggest greater disruption.**This metric is only relevant for images clearly containing faces**
 - CLIP Similarity: Uses OpenAI's CLIP model to compare how well the images align with textual descriptions. Lower scores indicate a loss of semantic coherence.
+- CLIP Score: Measures the compatibility between a generated image and its prompt by calculating the cosine similarity between their CLIP embeddings.
 - BLEU Score (for captions): Evaluates the difference in generated textual descriptions of the two images using an image captioning model. Lower scores suggest greater disruption of image semantics.
 ### `RealismEvaluation.py`
 Assesses how 'realistic' an image appears, attempting to be representative of human perception. Useful for evaluating deepfakes and the disruption caused by adversarial noise.
