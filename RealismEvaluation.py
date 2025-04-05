@@ -21,13 +21,16 @@ from skimage import img_as_float
 from skimage.restoration import estimate_sigma
 from skimage.measure import shannon_entropy
 import piq
+from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
 brisque_model = BRISQUE()
+ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0)
 
 def brisque_score(image):
     image_tensor = transforms.ToTensor()(image).unsqueeze(0) 
     return piq.brisque(image_tensor, data_range=1.0).item()
 
+# Cannot find any reference of how to calculate NIQE
 def calculate_niqe(image):
     image_float = img_as_float(image)
     sigma_estimation = np.mean(estimate_sigma(image_float, channel_axis=-1))
@@ -36,7 +39,11 @@ def calculate_niqe(image):
     return niqe_score
 
 def ms_ssim_score(image1, image2):
-    return ssim(rgb2gray(image1), rgb2gray(image2), data_range=255, multichannel=True)
+    image1_tensor = transforms.ToTensor()(image1).unsqueeze(0)
+    image2_tensor = transforms.ToTensor()(image2).unsqueeze(0)
+
+    with torch.no_grad():
+        return ms_ssim(image1_tensor, image2_tensor).item()
 
 def deepfake_detector_confidence(image, model, transform, device):
     image_tensor = transform(image).unsqueeze(0).to(device)
@@ -44,7 +51,7 @@ def deepfake_detector_confidence(image, model, transform, device):
         output = model(image_tensor)
     return torch.sigmoid(output).item()
 
-def evaluate_images(image1_path, image2_path, output_csv):
+def evaluate_images(image1_path, image2_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if not os.path.exists(image1_path) or not os.path.exists(image2_path):
@@ -52,6 +59,8 @@ def evaluate_images(image1_path, image2_path, output_csv):
 
     img1 = Image.open(image1_path).convert("RGB")
     img2 = Image.open(image2_path).convert("RGB")
+    img1 = img1.resize((512, 512))
+    img2 = img2.resize((512, 512))
     img1_cv = cv2.imread(image1_path)
     img2_cv = cv2.imread(image2_path)
 
@@ -67,21 +76,15 @@ def evaluate_images(image1_path, image2_path, output_csv):
     deepfake_model.to(device)
     deepfake_model.eval()
 
-    results = [
-        ["BRISQUE", image2_path, "", brisque_score(img2)],
-        ["NIQE", image2_path, "", calculate_niqe(img2_cv)],
-        ["MS-SSIM", image1_path, image2_path, ms_ssim_score(img1, img2)],
-        ["Deepfake Detector Confidence", image2_path, "", deepfake_detector_confidence(img2, deepfake_model, transform, device)]
-    ]
-
-    df = pd.DataFrame(results, columns=["Metric", "Image 1", "Image 2", "Score"])
-    df.to_csv(output_csv, index=False, mode='a', header=not os.path.exists(output_csv))
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Evaluate image realism and distortions")
-    parser.add_argument("--image1", type=str, required=True, help="Path to the first image")
-    parser.add_argument("--image2", type=str, required=True, help="Path to the second image")
-    parser.add_argument("--output", type=str, required=True, help="Path to the output CSV file")
-    args = parser.parse_args()
-
-    evaluate_images(args.image1, args.image2, args.output)
+    results = {
+        "Image 1": image1_path,
+        "Image 2": image2_path,
+        "BRISQUE": brisque_score(img2),
+        "NIQE": calculate_niqe(img2_cv),
+        "MS-SSIM": ms_ssim_score(img1, img2, transform),
+        "Deepfake Detector Confidence": deepfake_detector_confidence(img2, deepfake_model, transform, device)
+    }
+    df = pd.DataFrame([results])
+    numeric = ["BRISQUE", "NIQE", "MS-SSIM", "Deepfake Detector Confidence"]
+    df[numeric] = df[numeric].astype(np.float64)
+    return df
