@@ -70,7 +70,7 @@ def evaluate_semantic(image1_path, image2_path):
     # Regex to get the prompt file from an image name
     prompt = ''
     prompt_dir = ''
-    pattern = r"^.*?fourth-year-project-dataset"
+    pattern = r"^.*?People250"
     match = re.match(pattern, image2_path)
     prompt_dir = match.group() + '/prompts/'
     match = re.search(r"^(.*\/)(\d+)(?=_)", image2_path)
@@ -94,10 +94,10 @@ def evaluate_semantic(image1_path, image2_path):
 
     blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-    
+
     caption1 = generate_caption(img1, blip_processor, blip_model)
     caption2 = generate_caption(img2, blip_processor, blip_model)
-    
+
     results = {
         "Image 1": image1_path,
         "Image 2": image2_path,
@@ -110,4 +110,3 @@ def evaluate_semantic(image1_path, image2_path):
     numeric = ["Cosine Similarity", "CLIP Similarity", "CLIP Score", "BLEU Score"]
     df[numeric] = df[numeric].astype(np.float64)
     return df
-    
